@@ -6,4 +6,4 @@ A 3D shelf for your own comic files (CBR, CBZ, PDF, EPUB). Spines stand side by 
 - Add a whole folder (desktop Chrome/Edge remember it), or select files on mobile.
 - Installable web app with offline support.
 
-Static site: no build step. Deploys as-is on Vercel.
+Static site: no build step, no outside services. The CBR decoder (node-unrar-js), JSZip and pdf.js are bundled in `lib/`, `rar.js` and `unrar.wasm`. Deploys as-is on Vercel.

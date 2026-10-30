@@ -255,13 +255,9 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 <input type="file" id="fileIn" multiple hidden>
 <input type="file" id="folderIn" webkitdirectory directory multiple hidden>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script type="module">
-/* CBR decoder: node-unrar-js 2.0.2 (UnRAR by Alexander Roshal), loaded from jsDelivr and cached for offline use */
-import {createExtractorFromData} from 'https://cdn.jsdelivr.net/npm/node-unrar-js@2.0.2/+esm';
-window.InkRar={createExtractorFromData};
-</script>
+<script src="/lib/pdf.min.js"></script>
+<script src="/lib/jszip.min.js"></script>
+<script src="/rar.js"></script>
 <script>
 (function(){
 "use strict";
@@ -270,7 +266,7 @@ const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TOUCH=matchMedia('(pointer: coarse)').matches;
 const LOWEND=TOUCH||(navigator.hardwareConcurrency||4)<=4;
 const EASE='cubic-bezier(.2,.8,.2,1)';
-if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='/lib/pdf.worker.min.js';
 
 /* ================= storage: covers + metadata only (never the comic files) ================= */
 const DB={db:null,
@@ -343,7 +339,7 @@ async function buildSamples(){try{await Promise.race([Promise.all([document.font
 const IMG=/\.(jpe?g|png|gif|webp|avif|bmp)$/i;
 const MIME={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',webp:'image/webp',avif:'image/avif',bmp:'image/bmp'};
 const junk=n=>/(^|[\/\\])__MACOSX[\/\\]/.test(n)||/^\./.test(n.split(/[\/\\]/).pop());
-let WASM=null;async function wasmBin(){if(!WASM){const r=await fetch('https://cdn.jsdelivr.net/npm/node-unrar-js@2.0.2/esm/js/unrar.wasm');if(!r.ok)throw new Error('download failed');WASM=await r.arrayBuffer();}return WASM.slice(0);}
+let WASM=null;async function wasmBin(){if(!WASM){const r=await fetch('/unrar.wasm');if(!r.ok)throw new Error('download failed');WASM=await r.arrayBuffer();}return WASM.slice(0);}
 async function rarReady(){for(let i=0;i<50&&!window.InkRar;i++)await new Promise(r=>setTimeout(r,100));return !!window.InkRar;}
 async function openRar(blob){if(!(await rarReady()))throw new Error('the CBR reader could not load. Check your internet connection once, then it works offline');let wasm;try{wasm=await wasmBin();}catch(e){throw new Error('the CBR reader could not download. Check your connection');}let ex;try{ex=await InkRar.createExtractorFromData({data:await blob.arrayBuffer(),wasmBinary:wasm});}catch(e){throw new Error('not a readable RAR archive ('+(e.reason||e.message||'damaged')+')');}
   const heads=[...ex.getFileList().fileHeaders];if(heads.some(h=>h.flags&&h.flags.encrypted))throw new Error('it is password protected');
@@ -465,7 +461,7 @@ function swap(mask,text,dir){const sp=document.createElement('span');sp.textCont
   [...mask.children].forEach(c=>{if(c===sp||c._leaving)return;c._leaving=true;const cur=getComputedStyle(c).transform;const a=c.animate([{transform:cur==='none'?'translateY(0)':cur},{transform:`translateY(${-dir*105}%)`}],{duration:650,easing:EASE,fill:'both'});a.onfinish=()=>c.remove();});
   while(mask.children.length>4)mask.firstChild.remove();}
 function subOf(c){const left=(c.folder||c.series||'').toUpperCase();return c.issue!=null?`${left} · Issue ${c.issue}`:left;}
-function yearOf(c){const p=prog(c);const bits=[c.year||null,c.pages?`${c.pages} pages`:null];if(c.status==='err')bits.push('unreadable');if(p.state==='reading')bits.push(`page ${p.page+1}`);if(p.state==='done')bits.push('finished');return bits.filter(Boolean).join(' · ').toUpperCase()||' ';}
+function yearOf(c){const p=prog(c);const bits=[c.year||null,c.pages?`${c.pages} page${c.pages===1?'':'s'}`:null];if(c.status==='err')bits.push('unreadable');if(p.state==='reading')bits.push(`page ${p.page+1}`);if(p.state==='done')bits.push('finished');return bits.filter(Boolean).join(' · ').toUpperCase()||' ';}
 function setActive(i,dir){activeIdx=i;const c=list[i];swap($('#capT'),c.title,dir);swap($('#capS'),subOf(c),dir);swap($('#capY'),yearOf(c),dir);placeTabInd();}
 
 /* ================= frame loop ================= */
@@ -532,7 +528,7 @@ $('#blobs').innerHTML=BLOBS.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="0"/>`).
 const circles=[...$('#blobs').children];let inkRaf=0,sheetAnim=null;
 function coverRect(){const p=slotOf.get(activeV);return p?p.cv.getBoundingClientRect():{left:W/2-d/2,top:VH/2-H/2,width:d,height:H};}
 function fillDetail(c){const p=prog(c);$('#dSub').textContent=subOf(c);$('#dTitle').textContent=c.title;
-  $('#dMeta').textContent=[c.year,c.fmt||'',c.pages?`${c.pages} pages`:''].filter(Boolean).join(' / ');
+  $('#dMeta').textContent=[c.year,c.fmt||'',c.pages?`${c.pages} page${c.pages===1?'':'s'}`:''].filter(Boolean).join(' / ');
   const where=c.kind==='sample'?'A sample issue drawn for this shelf. It stays here until you add your own comics.':(c.path?`From your folder “${c.path.split('/').slice(0,-1).join(' / ')||c.folder}”.`:'Added from your files.');
   const state=c.status==='err'?`This file couldn’t be read: ${c.err}.`:p.state==='unread'?'Not opened yet.':p.state==='done'?'You have read it cover to cover.':`You stopped on page ${p.page+1} of ${c.pages}.`;
   $('#dSyn').textContent=`${where} ${state}`;
